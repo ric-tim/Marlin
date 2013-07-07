@@ -676,7 +676,8 @@ block->steps_y = labs((target[X_AXIS]-position[X_AXIS]) - (target[Y_AXIS]-positi
   }
   float inverse_millimeters = 1.0/block->millimeters;  // Inverse millimeters to remove multiple divides 
 
-    // Calculate speed in mm/second for each axis. No divide by zero due to previous checks.
+
+  // calculate moves/second for this move. No divide by zero due to previous checks.
   float inverse_second = feed_rate * inverse_millimeters;
 
   int moves_queued=(block_buffer_head-block_buffer_tail + BLOCK_BUFFER_SIZE) & (BLOCK_BUFFER_SIZE - 1);
@@ -774,15 +775,24 @@ block->steps_y = labs((target[X_AXIS]-position[X_AXIS]) - (target[Y_AXIS]-positi
     block->acceleration_st = ceil(acceleration * steps_per_mm); // convert to: acceleration steps/sec^2
     // Limit acceleration per axis
     if(((float)block->acceleration_st * (float)block->steps_x / (float)block->step_event_count) > axis_steps_per_sqr_second[X_AXIS])
-      block->acceleration_st = axis_steps_per_sqr_second[X_AXIS];
+    	// acceleration is too fast for x, so limit acceleration to a rate that just passes the test on previous line
+    	block->acceleration_st = axis_steps_per_sqr_second[X_AXIS] * (float)block->step_event_count/(float)block->steps_x;
+
     if(((float)block->acceleration_st * (float)block->steps_y / (float)block->step_event_count) > axis_steps_per_sqr_second[Y_AXIS])
-      block->acceleration_st = axis_steps_per_sqr_second[Y_AXIS];
+    	// acceleration is too fast for y, so limit acceleration to a rate that just passes the test on previous line
+    	block->acceleration_st = axis_steps_per_sqr_second[Y_AXIS] * (float)block->step_event_count/(float)block->steps_y;
+
     if(((float)block->acceleration_st * (float)block->steps_e / (float)block->step_event_count) > axis_steps_per_sqr_second[E_AXIS])
-      block->acceleration_st = axis_steps_per_sqr_second[E_AXIS];
+    	// acceleration is too fast for e, so limit acceleration to a rate that just passes the test on previous line
+    	block->acceleration_st = axis_steps_per_sqr_second[E_AXIS] * (float)block->step_event_count/(float)block->steps_e;
+
     if(((float)block->acceleration_st * (float)block->steps_z / (float)block->step_event_count ) > axis_steps_per_sqr_second[Z_AXIS])
-      block->acceleration_st = axis_steps_per_sqr_second[Z_AXIS];
+    	// acceleration is too fast for z, so limit acceleration to a rate that just passes the test on previous line
+    	block->acceleration_st = axis_steps_per_sqr_second[Z_AXIS] * (float)block->step_event_count/(float)block->steps_z;
   }
   block->acceleration = block->acceleration_st / steps_per_mm;
+
+ // TODO: What is the significance of 16777216.0? Should it be defined as a constant somewhere? Could it ever change?
   block->acceleration_rate = (long)((float)block->acceleration_st * (16777216.0 / (F_CPU / 8.0)));
 
 #if 0  // Use old jerk for now

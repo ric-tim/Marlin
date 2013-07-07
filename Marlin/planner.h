@@ -144,4 +144,6 @@ void set_extrude_min_temp(float temp);
 #endif
 
 void reset_acceleration_rates();
+
+void reset_acceleration_rates();
 #endif

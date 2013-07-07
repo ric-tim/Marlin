@@ -48,6 +48,7 @@ static void lcd_control_temperature_preheat_pla_settings_menu();
 static void lcd_control_temperature_preheat_abs_settings_menu();
 static void lcd_control_motion_menu();
 static void lcd_control_retract_menu();
+static void lcd_control_version_menu();
 static void lcd_sdcard_menu();
 
 static void lcd_quick_feedback();//Cause an LCD refresh, and give the user visual or audiable feedback that something has happend
@@ -84,10 +85,9 @@ static void menu_action_setting_edit_callback_long5(const char* pstr, unsigned l
   #define ENCODER_STEPS_PER_MENU_ITEM 2 // VIKI LCD rotary encoder uses a different number of steps per rotation
 #endif
 
-
 /* Helper macros for menus */
 #define START_MENU() do { \
-    if (encoderPosition > 0x8000) encoderPosition = 0; \
+    if (encoderPosition < 0) encoderPosition = 0; \
     if (encoderPosition / ENCODER_STEPS_PER_MENU_ITEM < currentMenuViewOffset) currentMenuViewOffset = encoderPosition / ENCODER_STEPS_PER_MENU_ITEM;\
     uint8_t _lineNr = currentMenuViewOffset, _menuItemNr; \
     for(uint8_t _drawLineNr = 0; _drawLineNr < LCD_HEIGHT; _drawLineNr++, _lineNr++) { \
@@ -128,8 +128,11 @@ volatile uint16_t buttons;//Contains the bits of the currently pressed buttons (
 uint8_t currentMenuViewOffset;              /* scroll offset in the current menu */
 uint32_t blocking_enc;
 uint8_t lastEncoderBits;
-int8_t encoderDiff; /* encoderDiff is updated from interrupt context and added to encoderPosition every LCD update */
-uint32_t encoderPosition;
+int8_t encoderDiff; 				/* encoderDiff is updated from interrupt context and added to encoderPosition every LCD update */
+int32_t encoderPosition;  			/* this is required to go negative for most of the functionality in here - so make it signed */
+uint8_t encoder_tracking_window; 	/* keep track of how many loops since the encoder moved */
+boolean encoder_moved;				/* true if the encoder was moved on this pass through the lcd_update loop */
+
 #if (SDCARDDETECT > 0)
 bool lcd_oldcardstatus;
 #endif
@@ -152,61 +155,86 @@ menuFunc_t callbackFunc;
 // placeholders for Ki and Kd edits
 float raw_Ki, raw_Kd;
 
-/* Main status screen. It's up to the implementation specific part to show what is needed. As this is very display dependend */
+/* Main status screen. It's up to the implementation specific part to show what is needed, as this is very display dependent */
 static void lcd_status_screen()
 {
+	int8_t this_move;		// number of clicks for current change
+	int8_t feed_block;		// size of each change
+	int8_t num_blocks;		// number of changes
+	
     if (lcd_status_update_delay)
         lcd_status_update_delay--;
     else
+    	// TO-DO: Do we need to worry about the possibility that lcdDrawUpdate was already 2 when we arrived here?
         lcdDrawUpdate = 1;
-    if (lcdDrawUpdate)
-    {
-        lcd_implementation_status_screen();
-        lcd_status_update_delay = 10;   /* redraw the main screen every second. This is easier then trying keep track of all things that change on the screen */
-    }
+   
 #ifdef ULTIPANEL
     if (LCD_CLICKED)
     {
         currentMenu = lcd_main_menu;
-        encoderPosition = 0;
         lcd_quick_feedback();
     }
+    
+    if (encoder_moved)
+    	{
+    	// reset the counter for how long we wait for encoder moves to add up to a 'click'
+   		encoder_tracking_window = 0;
+   		}
+    
+    if ( (encoderPosition > ENCODER_ACCEL_THRESHOLD_1)|| (encoderPosition < (0 - ENCODER_ACCEL_THRESHOLD_1)) )
+    	{
+    	// it's time to make a move
+    	this_move = encoderPosition;
+    	
+    	// size of move to make
+    	feed_block =  ( ((this_move >= ENCODER_ACCEL_THRESHOLD_3) || (this_move <= 0 - ENCODER_ACCEL_THRESHOLD_3))?ENCODER_ACCEL_BLOCK_3:
+    								( ((this_move >= ENCODER_ACCEL_THRESHOLD_2) || (this_move <= 0 - ENCODER_ACCEL_THRESHOLD_2))?ENCODER_ACCEL_BLOCK_2:ENCODER_ACCEL_BLOCK_1) );
+    	
+    	// number of moves - scaled inversely to the block size
+    	num_blocks = this_move / ( ((this_move >= ENCODER_ACCEL_THRESHOLD_3) || (this_move <= 0 - ENCODER_ACCEL_THRESHOLD_3))?ENCODER_ACCEL_THRESHOLD_3:
+    								( ((this_move >= ENCODER_ACCEL_THRESHOLD_2) || (this_move <= 0 - ENCODER_ACCEL_THRESHOLD_2))?ENCODER_ACCEL_THRESHOLD_2:ENCODER_ACCEL_THRESHOLD_1) );
+    	
+    	
+    	// round to the nearest block size, and then add blocks (maybe block = 1 to begin with)
+    	feedmultiply = (feed_block * (feedmultiply/feed_block)) + (num_blocks * feed_block);
+    	
+    	// remember the remainder, so we can keep scrolling smoothly
+   		encoderPosition = encoderPosition %  (num_blocks * feed_block);
+   		
+   		
+   		if (feedmultiply < 10)
+        	feedmultiply = 10;
+    	if (feedmultiply > 999)
+        	feedmultiply = 999;
+        	
+        //force a redraw - the lcd loop should already have done this for an encoder move, but just in case that changes
+        lcdDrawUpdate = 1;
+   		}
+   		
+   	if (encoder_tracking_window++ >= ENCODER_SMOOTHING)
+   		{
+   		// we've gone long enough without encoder movement, so reset counter so we don't
+   		// accidentally tip it over the edge with just one extra move much later
+    	encoderPosition = 0;
+    	encoder_tracking_window = 0;
+    	}
+    	
+#endif //ULTIPANEL
 
-    // Dead zone at 100% feedrate
-    if ((feedmultiply < 100 && (feedmultiply + int(encoderPosition)) > 100) ||
-            (feedmultiply > 100 && (feedmultiply + int(encoderPosition)) < 100))
-    {
-        encoderPosition = 0;
-        feedmultiply = 100;
-    }
+ 	// redraw if one is needed - e.g., on update_delay timeout, or now that we've changed the feedmultiply rate
+ 	if (lcdDrawUpdate)
+    	{
+        lcd_implementation_status_screen();
+        lcd_status_update_delay = 10;   /* if nothing else prompts it sooner, redraw in 1 second*/
+    	}
 
-    if (feedmultiply == 100 && int(encoderPosition) > ENCODER_FEEDRATE_DEADZONE)
-    {
-        feedmultiply += int(encoderPosition) - ENCODER_FEEDRATE_DEADZONE;
-        encoderPosition = 0;
-    }
-    else if (feedmultiply == 100 && int(encoderPosition) < -ENCODER_FEEDRATE_DEADZONE)
-    {
-        feedmultiply += int(encoderPosition) + ENCODER_FEEDRATE_DEADZONE;
-        encoderPosition = 0;	
-    }
-    else if (feedmultiply != 100)
-    {
-        feedmultiply += int(encoderPosition);
-        encoderPosition = 0;
-    }
-
-    if (feedmultiply < 10)
-        feedmultiply = 10;
-    if (feedmultiply > 999)
-        feedmultiply = 999;
-#endif//ULTIPANEL
 }
 
 #ifdef ULTIPANEL
 static void lcd_return_to_status()
 {
     encoderPosition = 0;
+    encoder_tracking_window = 0;
     currentMenu = lcd_status_screen;
 }
 
@@ -500,6 +528,7 @@ static void lcd_control_menu()
     MENU_ITEM(function, MSG_LOAD_EPROM, Config_RetrieveSettings);
 #endif
     MENU_ITEM(function, MSG_RESTORE_FAILSAFE, Config_ResetDefault);
+    MENU_ITEM(submenu, MSG_VERSION, lcd_control_version_menu);
     END_MENU();
 }
 
@@ -617,6 +646,23 @@ static void lcd_control_retract_menu()
     END_MENU();
 }
 #endif
+
+static void lcd_control_version_menu()
+{
+    if (lcdDrawUpdate)
+    {
+        lcd_implementation_draw_line(0, PSTR(MSG_VERSION));
+        lcd_implementation_draw_line(1, PSTR(VERSION_BASE));
+        lcd_implementation_draw_line(2, PSTR(VERSION_PROFILE));
+        lcd_implementation_draw_line(3, PSTR(STRING_VERSION_CONFIG_H));
+    }
+    if (LCD_CLICKED)
+    {
+        lcd_quick_feedback();
+        currentMenu = lcd_control_menu;
+        encoderPosition = 0;
+    }
+}
 
 #if SDCARDDETECT == -1
 static void lcd_sd_refresh()
@@ -808,6 +854,9 @@ void lcd_init()
 {
     lcd_implementation_init();
 
+	// explicitly set up the status menu
+	lcd_return_to_status();
+
 #ifdef NEWPANEL
     pinMode(BTN_EN1,INPUT);
     pinMode(BTN_EN2,INPUT); 
@@ -893,8 +942,11 @@ void lcd_update()
             lcdDrawUpdate = 1;
             encoderPosition += encoderDiff;
             encoderDiff = 0;
+            encoder_moved = true;
             timeoutToStatus = millis() + LCD_TIMEOUT_TO_STATUS;
         }
+        else
+        	encoder_moved = false;
         if (LCD_CLICKED)
             timeoutToStatus = millis() + LCD_TIMEOUT_TO_STATUS;
 #endif//ULTIPANEL

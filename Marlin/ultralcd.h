@@ -49,6 +49,15 @@
   #define LCD_ALERTMESSAGEPGM(x) 
 #endif 
 
+#define ENCODER_STEPS_PER_MENU_ITEM 5
+#define ENCODER_SMOOTHING 7
+#define ENCODER_ACCEL_THRESHOLD_1 4
+#define ENCODER_ACCEL_BLOCK_1	1
+#define ENCODER_ACCEL_THRESHOLD_2 9
+#define ENCODER_ACCEL_BLOCK_2 5
+#define ENCODER_ACCEL_THRESHOLD_3 14
+#define ENCODER_ACCEL_BLOCK_3 10
+
 char *itostr2(const uint8_t &x);
 char *itostr31(const int &xx);
 char *itostr3(const int &xx);

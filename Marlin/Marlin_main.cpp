@@ -48,8 +48,6 @@
 #include <SPI.h>
 #endif
 
-#define VERSION_STRING  "1.0.0"
-
 // look here for descriptions of gcodes: http://linuxcnc.org/handbook/gcode/g-code.html
 // http://objects.reprap.org/wiki/Mendel_User_Manual:_RepRapGCodes
 
@@ -409,7 +407,7 @@ void setup()
   {
     fromsd[i] = false;
   }
-
+  
   // loads data from EEPROM if available else uses defaults (and resets step acceleration rate)
   Config_RetrieveSettings();
 
@@ -1452,7 +1450,7 @@ void process_commands()
         }
       }
       // steps per sq second need to be updated to agree with the units per sq second (as they are what is used in the planner)
-      reset_acceleration_rates();
+	  reset_acceleration_rates();
       break;
     #if 0 // Not used for Sprinter/grbl gen6
     case 202: // M202
