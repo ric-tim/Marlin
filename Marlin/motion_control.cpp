@@ -22,7 +22,7 @@
 #include "Marlin.h"
 #include "stepper.h"
 #include "planner.h"
-
+uint8_t revol = 0; 
 // The arc is approximated by generating a huge number of tiny, linear segments. The length of each 
 // segment is configured in settings.mm_per_arc_segment.  
 void mc_arc(float *position, float *target, float *offset, uint8_t axis_0, uint8_t axis_1, 
@@ -32,6 +32,13 @@ void mc_arc(float *position, float *target, float *offset, uint8_t axis_0, uint8
   //   plan_set_acceleration_manager_enabled(false); // disable acceleration management for the duration of the arc
   float center_axis0 = position[axis_0] + offset[axis_0];
   float center_axis1 = position[axis_1] + offset[axis_1];
+  #ifdef REVOL
+  if((center_axis0 > CENTER_X - DELTA_CENTER) && (center_axis0 < CENTER_X + DELTA_CENTER) 
+                                   && (center_axis1 > CENTER_Y - DELTA_CENTER) 
+								   && (center_axis1 < CENTER_Y + DELTA_CENTER)) {
+								       revol = 1 ;
+  }
+  #endif
   float linear_travel = target[axis_linear] - position[axis_linear];
   float extruder_travel = target[E_AXIS] - position[E_AXIS];
   float r_axis0 = -offset[axis_0];  // Radius vector from center to current location
@@ -48,7 +55,13 @@ void mc_arc(float *position, float *target, float *offset, uint8_t axis_0, uint8
   if (millimeters_of_travel < 0.001) { return; }
   uint16_t segments = floor(millimeters_of_travel/MM_PER_ARC_SEGMENT);
   if(segments == 0) segments = 1;
-  
+  #ifdef REVOL
+    // Tous les parametres sont calculés, on peut les passer à planner.cpp...
+	if(revol) {
+	plan_buffer_arc(target[X_AXIS], target[Y_AXIS], target[Z_AXIS], target[E_AXIS],angular_travel,millimeters_of_travel, isclockwise, feed_rate, extruder);
+	return ;
+	}
+  #endif 
   /*  
     // Multiply inverse feed_rate to compensate for the fact that this movement is approximated
     // by a number of discrete segments. The inverse feed_rate should be correct for the sum of 

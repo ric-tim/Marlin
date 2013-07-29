@@ -1010,6 +1010,14 @@
 #define Z_MAX_PIN 32
 #define Z_ENABLE_PIN 35
 
+#ifdef REVOL
+#define R_STEP_PIN 49
+#define R_DIR_PIN 47
+#define R_MIN_PIN -1
+#define R_MAX_PIN -1
+#define R_ENABLE_PIN 48
+#endif
+
 #define HEATER_BED_PIN 4
 #define TEMP_BED_PIN 10
 
@@ -1026,9 +1034,11 @@
 #define E0_DIR_PIN          45
 #define E0_ENABLE_PIN       41
 
+#ifndef REVOL
 #define E1_STEP_PIN         49
 #define E1_DIR_PIN          47
 #define E1_ENABLE_PIN       48
+#endif
 
 #define SDPOWER            -1
 #define SDSS               53

@@ -4,6 +4,7 @@
 #ifndef MARLIN_H
 #define MARLIN_H
 
+
 #define  FORCE_INLINE __attribute__((always_inline)) inline
 
 #include <math.h>
@@ -111,7 +112,15 @@ void manage_inactivity();
   #define enable_y() ;
   #define disable_y() ;
 #endif
-
+#ifdef REVOL
+  #if defined(R_ENABLE_PIN) && R_ENABLE_PIN > -1
+    #define  enable_r() WRITE(R_ENABLE_PIN, R_ENABLE_ON)
+    #define disable_r() WRITE(R_ENABLE_PIN,!R_ENABLE_ON)
+  #else
+    #define enable_r() ;
+    #define disable_r() ;
+  #endif
+#endif
 #if defined(Z_ENABLE_PIN) && Z_ENABLE_PIN > -1
   #ifdef Z_DUAL_STEPPER_DRIVERS
     #define  enable_z() { WRITE(Z_ENABLE_PIN, Z_ENABLE_ON); WRITE(Z2_ENABLE_PIN, Z_ENABLE_ON); }
@@ -150,7 +159,7 @@ void manage_inactivity();
 #endif
 
 
-enum AxisEnum {X_AXIS=0, Y_AXIS=1, Z_AXIS=2, E_AXIS=3};
+enum AxisEnum {X_AXIS=0, Y_AXIS=1, Z_AXIS=2, E_AXIS=3, R_AXIS=4};
 
 
 void FlushSerialRequestResend();

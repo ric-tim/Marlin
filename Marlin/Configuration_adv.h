@@ -170,6 +170,9 @@
 //By default pololu step drivers require an active high signal. However, some high power drivers require an active low signal as step.
 #define INVERT_X_STEP_PIN false
 #define INVERT_Y_STEP_PIN false
+#ifdef REVOL
+#define INVERT_R_STEP_PIN false
+#endif
 #define INVERT_Z_STEP_PIN false
 #define INVERT_E_STEP_PIN false
 

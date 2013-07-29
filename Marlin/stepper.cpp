@@ -51,6 +51,9 @@ static long counter_x,       // Counter variables for the bresenham line tracer
             counter_y, 
             counter_z,       
             counter_e;
+#ifdef REVOL			
+static long counter_r;
+#endif			
 volatile static unsigned long step_events_completed; // The number of step events executed in the current block
 #ifdef ADVANCE
   static long advance_rate, advance, final_advance = 0;
@@ -81,10 +84,13 @@ static bool old_z_min_endstop=false;
 static bool old_z_max_endstop=false;
 
 static bool check_endstops = true;
-
+#ifdef REVOL
+volatile long count_position[NUM_AXIS] = { 0, 0, 0, 0, 0};
+volatile signed char count_direction[NUM_AXIS] = { 1, 1, 1, 1, 1};
+#else
 volatile long count_position[NUM_AXIS] = { 0, 0, 0, 0};
 volatile signed char count_direction[NUM_AXIS] = { 1, 1, 1, 1};
-
+#endif
 //===========================================================================
 //=============================functions         ============================
 //===========================================================================
@@ -322,6 +328,9 @@ ISR(TIMER1_COMPA_vect)
       counter_y = counter_x;
       counter_z = counter_x;
       counter_e = counter_x;
+	  #ifdef REVOL
+	    counter_r = counter_x;
+	  #endif
       step_events_completed = 0; 
       
       #ifdef Z_LATE_ENABLE 
@@ -363,13 +372,24 @@ ISR(TIMER1_COMPA_vect)
       WRITE(Y_DIR_PIN, !INVERT_Y_DIR);
       count_direction[Y_AXIS]=1;
     }
-    
+	#ifdef REVOL
+    if((out_bits & (1<<R_AXIS))!=0){
+      WRITE(R_DIR_PIN, INVERT_R_DIR);
+      count_direction[R_AXIS]=-1;
+    }
+    else{
+      WRITE(R_DIR_PIN, !INVERT_R_DIR);
+      count_direction[R_AXIS]=1;
+    }
+	#endif
+	
     // Set direction en check limit switches
     #ifndef COREXY
     if ((out_bits & (1<<X_AXIS)) != 0) {   // stepping along -X axis
     #else
     if ((((out_bits & (1<<X_AXIS)) != 0)&&(out_bits & (1<<Y_AXIS)) != 0)) {   //-X occurs for -A and -B
     #endif
+	
       CHECK_ENDSTOPS
       {
         #if defined(X_MIN_PIN) && X_MIN_PIN > -1
@@ -520,7 +540,15 @@ ISR(TIMER1_COMPA_vect)
           count_position[Y_AXIS]+=count_direction[Y_AXIS]; 
           WRITE(Y_STEP_PIN, INVERT_Y_STEP_PIN);
         }
-  
+		#ifdef REVOL
+        counter_r += current_block->steps_r;
+        if (counter_r > 0) {
+          WRITE(R_STEP_PIN, !INVERT_R_STEP_PIN);
+          counter_r -= current_block->step_event_count; 
+          count_position[R_AXIS]+=count_direction[R_AXIS]; 
+          WRITE(R_STEP_PIN, INVERT_R_STEP_PIN);
+        }
+		#endif
       counter_z += current_block->steps_z;
       if (counter_z > 0) {
         WRITE(Z_STEP_PIN, !INVERT_Z_STEP_PIN);
@@ -688,6 +716,11 @@ void st_init()
   #if defined(Y_DIR_PIN) && Y_DIR_PIN > -1 
     SET_OUTPUT(Y_DIR_PIN);
   #endif
+  #ifdef REVOL
+    #if defined(R_DIR_PIN) && R_DIR_PIN > -1 
+    SET_OUTPUT(R_DIR_PIN);
+    #endif
+  #endif
   #if defined(Z_DIR_PIN) && Z_DIR_PIN > -1 
     SET_OUTPUT(Z_DIR_PIN);
 
@@ -714,6 +747,12 @@ void st_init()
   #if defined(Y_ENABLE_PIN) && Y_ENABLE_PIN > -1
     SET_OUTPUT(Y_ENABLE_PIN);
     if(!Y_ENABLE_ON) WRITE(Y_ENABLE_PIN,HIGH);
+  #endif
+  #ifdef REVOL
+    #if defined(R_ENABLE_PIN) && R_ENABLE_PIN > -1
+      SET_OUTPUT(R_ENABLE_PIN);
+      if(!R_ENABLE_ON) WRITE(R_ENABLE_PIN,HIGH);
+    #endif
   #endif
   #if defined(Z_ENABLE_PIN) && Z_ENABLE_PIN > -1
     SET_OUTPUT(Z_ENABLE_PIN);
@@ -792,7 +831,14 @@ void st_init()
     SET_OUTPUT(Y_STEP_PIN);
     WRITE(Y_STEP_PIN,INVERT_Y_STEP_PIN);
     disable_y();
-  #endif  
+  #endif 
+  #ifdef REVOL  
+    #if defined(R_STEP_PIN) && (R_STEP_PIN > -1) 
+      SET_OUTPUT(R_STEP_PIN);
+      WRITE(R_STEP_PIN,INVERT_R_STEP_PIN);
+      disable_r();
+    #endif 
+  #endif	
   #if defined(Z_STEP_PIN) && (Z_STEP_PIN > -1) 
     SET_OUTPUT(Z_STEP_PIN);
     WRITE(Z_STEP_PIN,INVERT_Z_STEP_PIN);
@@ -881,7 +927,14 @@ void st_set_e_position(const long &e)
   count_position[E_AXIS] = e;
   CRITICAL_SECTION_END;
 }
-
+#ifdef REVOL
+  void st_set_r_position(const long &r)
+  {
+    CRITICAL_SECTION_START;
+    count_position[R_AXIS] = r;
+    CRITICAL_SECTION_END;
+  }
+#endif 
 long st_get_position(uint8_t axis)
 {
   long count_pos;
