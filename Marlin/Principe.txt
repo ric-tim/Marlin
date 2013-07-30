@@ -1,17 +1,26 @@
 1- Principe des modifications
 ------------------------------
 RT 30.07.2013 1° version
+Les 4 axes en service sur une Ultimaker sont baptisés X, Y, Z, E.
+J'en ai ajouté un cinquième dans les fichiers de configuration
+en le baptisant R.  
+Je suis parti du principe que nous rajoutions une fonction à la machine actuelle pour
+en faire une machine hybride. 
+Mes interventions sont timides, probablement maladroites aussi, mais j'espère qu'elles
+nous aideront à avancer, c'est toujours mieux d'avoir un exemple à ne pas suivre plutôt
+que rien du tout....   
 
-Marlin_main.cpp  interpréte le gcode
+Marlin_main.cpp  interpréte le gcode, je n'y ai pas touché.
  Pour G2 et G3 
- ->  appel mc_arc() contenu dans motion_control.cpp
+ ->  appel à mc_arc() contenu dans motion_control.cpp
    -> Modifications de motion_control.cpp
-		a) une fois le centre calculé décision :
-			- on ne fait rien s'il n'est pas dans la fourchette 95-105
-			  le slicer Slic3r positionne le centre aux coordonnées 100 100
+		a) une fois les coordonnées du centre calculées, on décide : 
+			- soit on ne fait rien s'il est hors d'un carré 95-105
+			  [ le slicer Slic3r positionne le centre aux coordonnées 100 100 ]
 			  (CENTER_X,CENTER_Y,DELTA_CENTER dans Configuration.h)
 			  découpage en segments et remplissage du buffer par plan_buffer_line()
-			- on remplace plan_buffer_line() par plan_buffer_arc()
+			- soit on remplace plan_buffer_line() par plan_buffer_arc() pour faire
+			   tourner notre plateau.
 	-> Modification de planner.cpp		
 		b) planner.cpp gère le buffer des commandes à envoyer aux moteurs
 			- il reçoit normalement et traite plan_buffer_line()
@@ -19,12 +28,33 @@ Marlin_main.cpp  interpréte le gcode
 			- J'ai ajouté la routine plan_buffer_arc()
 			  là il faudra calculer le nombre de pas à effectuer en rotation,
 				--> évaluer axis_steps_per_unit[R_AXIS]
-			  je ne touche pour l'instant pas à X et à Y dans cette opération,
+			  je ne touche pour l'instant ni à X ni à Y dans cette opération,
 			  je fais comme si Z pouvait bouger...
 			  à ce stade on dispose des coordonnées du centre, de l'angle à effectuer
-			  de la longueur du chemin à parcourir et des coordonnées du point à atteindre
+			  de la longueur du chemin à parcourir (utilisé pour calculer l'extrusion) 
+			  et des coordonnées du point à atteindre.
 			  (mise à jour des valeurs de X et Y sans toucher les moteurs ;-)
 	-> Modification de stepper.cpp		  
 		c) stepper.cpp reçoit les commandes et doit faire tourner les moteurs et régler la vitesse en fonction du
-     		nombre de pas à effectuer. Il y a tout un savant calcul des accélérations, je ne
-            m'en suis pas occupé pour l'instant. 			
+     		nombre de pas à effectuer. Il y a tout un savant calcul des accélérations, un délicat traitement
+			des fins de courses et de la température de la tête d'extrusion, je n'ai pas eu à traiter cela, cependant
+			il faudra probablement soigner la dynamique de ce moteur aussi...
+            Juste essayé à ce stade de faire tourner le moteur de l'axe baptisé R dans
+			le bon sens et de la bonne valeur en extrudant la bonne quantité de matière...
+			C'est dans cette partie du code, qu'il faudra s'investir...
+			
+2- Que faire de ce code ?
+-------------------------
+	Sur les machines Unix et sur MacOS X il ne devrait pas y avoir de problème à faire ce que j'ai fait.
+	git clone 
+	make DEFINE=REVOL
+	on obtient applet/Marlin.hex qui ne demande qu'à être pousé sur l'Arduino
+	Sur Windows, la seule partie délicate consiste à disposer des outils pour faire la commande make en dehors,
+	de l'IDE car l'interface Arduino ne permet pas de placer facilement ce DEFINE...
+	Ceci dit XLoader permet de charger facilement ce Marlin.hex récupéré ailleurs sur notre Ultimaker !
+	
+	Slic3r nous permet de générer du code propice aux essais sur notre machine. Il faut toujours vérifier la qualité
+	de ce gcode expérimental en imprimant avec un firmware qui ne gère pas notre axe (Marlin.hex obtenu par la 
+	commande make tout court). 
+	Si la piece est bonne on devrait obtenir mieux et plus vite avec le code modifié et notre plateau tournant ;-)
+			

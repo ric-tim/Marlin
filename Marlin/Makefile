@@ -40,11 +40,11 @@
 HARDWARE_MOTHERBOARD ?= 7
 
 # Arduino source install directory, and version number
-ARDUINO_INSTALL_DIR  ?= /home/Richard/Arduino/arduino-1.0.5
-ARDUINO_VERSION      ?= 105
+ARDUINO_INSTALL_DIR  ?= C:\Users\Richard\Documents\Arduino\arduino-1.0.4
+ARDUINO_VERSION      ?= 104
 
 # You can optionally set a path to the avr-gcc tools. Requires a trailing slash. (ex: /usr/local/avr-gcc/bin)
-AVR_TOOLS_PATH ?= /home/Richard/Arduino/arduino-1.0.5/hardware/tools/avr/bin/
+AVR_TOOLS_PATH ?= C:\Users\Richard\Documents\Arduino\arduino-1.0.4\hardware\tools\avr\bin\
 
 #Programmer configuration
 UPLOAD_RATE        ?= 115200
