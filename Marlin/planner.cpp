@@ -975,7 +975,7 @@ millimeters_of_travel, uint8_t isclockwise, float feed_rate, const uint8_t &extr
   position[X_AXIS]=target[X_AXIS]; //behave as if the move really took place, but ignore X part
   position[Y_AXIS]=target[Y_AXIS]; //behave as if the move really took place, but ignore Y part
   target[Z_AXIS] = lround(z*axis_steps_per_unit[Z_AXIS]);
-  target[R_AXIS] = lround(millimeters_of_travel*axis_steps_per_unit[R_AXIS]);    
+  target[R_AXIS] = lround(angular_travel*axis_steps_per_unit[R_AXIS]);    
   target[E_AXIS] = lround(e*axis_steps_per_unit[E_AXIS]);
 
   #ifdef PREVENT_DANGEROUS_EXTRUDE
@@ -1023,7 +1023,7 @@ block->steps_y = labs((target[X_AXIS]-position[X_AXIS]) - (target[Y_AXIS]-positi
   block->steps_e *= extrudemultiply;
   block->steps_e /= 100;
   
-  block->steps_r = labs(target[R_AXIS]-position[R_AXIS]);
+  block->steps_r = labs(target[R_AXIS]); // Doit être calculé en fonction de angular_travel
   block->step_event_count = max(max(block->steps_z,block->steps_e), block->steps_r);
    
   // Bail if this is a zero-length block
