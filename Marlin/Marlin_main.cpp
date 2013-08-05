@@ -1397,7 +1397,12 @@ void process_commands()
       SERIAL_PROTOCOL(current_position[Z_AXIS]);
       SERIAL_PROTOCOLPGM("E:");
       SERIAL_PROTOCOL(current_position[E_AXIS]);
-
+	  #ifdef REVOL
+	  SERIAL_PROTOCOLPGM("R:");
+      SERIAL_PROTOCOL(current_position[R_AXIS]);
+	  SERIAL_PROTOCOLPGM(MSG_COUNT_R);
+      SERIAL_PROTOCOL(float(st_get_position(R_AXIS))/axis_steps_per_unit[R_AXIS]);
+	  #endif
       SERIAL_PROTOCOLPGM(MSG_COUNT_X);
       SERIAL_PROTOCOL(float(st_get_position(X_AXIS))/axis_steps_per_unit[X_AXIS]);
       SERIAL_PROTOCOLPGM("Y:");

@@ -370,15 +370,15 @@ const bool Z_ENDSTOPS_INVERTING = true; // set to true to invert the logic of th
 #define DEFAULT_RETRACT_ACCELERATION  3000   // X, Y, Z and E max acceleration in mm/s^2 for r retracts
 #else
 #define NUM_AXIS 5 // The axis order in all axis related arrays is X, Y, Z, E, R
-#define HOMING_FEEDRATE {75*60, 75*60, 10*60, 0, 10*60}  // set the homing speeds (mm/min)
+#define HOMING_FEEDRATE {75*60, 75*60, 10*60, 0, 75*60}  // set the homing speeds (mm/min)
 // Center
 #define CENTER_X						100
 #define CENTER_Y						100
 #define DELTA_CENTER 					 5
 
 // default settings
-
-#define DEFAULT_AXIS_STEPS_PER_UNIT   {78.7402,78.7402,200.0*8/3,760*1.1,78.7402}  // default steps per unit for ultimaker 
+// For R 2300/2*M_PI
+#define DEFAULT_AXIS_STEPS_PER_UNIT   {78.7402,78.7402,200.0*8/3,760*1.1,366.0564}  // default steps per unit for ultimaker 
 #define DEFAULT_MAX_FEEDRATE          {500, 500, 60, 45,60}    // (mm/sec)    
 #define DEFAULT_MAX_ACCELERATION      {9000,9000,1500,10000,1500}    // X, Y, Z, E, R maximum start speed for accelerated moves. E default values are good for skeinforge 40+, for older versions raise them a lot.
 #define DEFAULT_RJERK                 0.4     // (mm/sec)
